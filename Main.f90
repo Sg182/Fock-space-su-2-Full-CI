@@ -4,7 +4,7 @@ program Fock_FCI
   use InputParams, only: PrintInput, NSites, Dim, Model, Delta, J2, Periodic, &
                        PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol
 
-  use Operators
+  !use Operators
   use Integrals
 
   ! NEW:
@@ -25,7 +25,7 @@ program Fock_FCI
   NDet = ishft(1, NS)
   write(*,'(A,I0)') "NDet      = ", NDet
 
-  call SetUpPairOperators(NS)
+  !call SetUpPairOperators(NS)
   call SetUpIntegrals(NS)
 
   !============================================
@@ -64,6 +64,6 @@ program Fock_FCI
   write(*,'(A,F22.16)') "Ground-state energy = ", E0
 
   call ShutDownIntegrals()
-  call ShutDownPairOperators()
+  !call ShutDownPairOperators()
 
 end program Fock_FCI
