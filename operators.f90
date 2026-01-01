@@ -85,7 +85,8 @@ contains
 
       Splus(:,:,p)  = Pdag(:,:,p)
       Sminus(:,:,p) = Pmat(:,:,p)
-      Sz(:,:,p)     = Half*Nmat(:,:,p) - Half*Iden
+      Sz(:,:,p)     = Half*Nmat(:,:,p) - Half*Iden      !Here we are implementing spin su(2), so the factor 
+                                                        ! 1/2 already included here
     end do
 
     deallocate(Iden, stat=IAlloc)
