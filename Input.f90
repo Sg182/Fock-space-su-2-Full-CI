@@ -1,16 +1,62 @@
 module InputParams
   use Precision
   implicit none
-  integer :: NLevels = 6
-  real(kind=pr) :: Delta = -0.60_pr
-  real(kind=pr) :: J2    = 0.0_pr
-  logical :: Periodic    = .FALSE.
+
+  !-------------------------
+  ! Model / geometry control
+  !-------------------------
+  integer :: Dim = 1             ! 1 => 1D chain, 2 => 2D square
+  integer :: NLevels = 6          ! used when Dim=1
+  integer :: Nx = 4, Ny = 4       ! used when Dim=2   (NSites = Nx*Ny)
+
+  ! Boundary conditions
+  logical :: Periodic  = .FALSE.  ! for Dim=1
+  logical :: PBCx      = .false.  ! for Dim=2
+  logical :: PBCy      = .false.  ! for Dim=2
+
+  ! Hamiltonian parameters
+  real(kind=pr) :: Delta = 1.0_pr
+  real(kind=pr) :: J2    = 0.15_pr
+
+  ! =====Optional model selector (if you want a clean switch in Main)======
+  ! 1: 1D XXZ, 2: 1D J1J2XXZ, 3: 2D XXZ
+  integer :: Model = 2
+
+  integer       :: LanczosMaxIt = 200
+   real(kind=pr) :: LanczosTol   = 1.0e-12_pr
+
 contains
+
+  !=========================================================
+  ! Return total number of sites/pair-levels used by Fock code
+  !=========================================================
+  integer function NSites()
+    implicit none
+    if (Dim == 1) then
+      NSites = NLevels
+    else if (Dim == 2) then
+      NSites = Nx*Ny
+    else
+      stop "InputParams: Dim must be 1 or 2"
+    end if
+  end function NSites
+
   subroutine PrintInput()
     implicit none
-    write(*,'(A,I0)')     "NLevels   = ", NLevels
+    write(*,'(A,I0)')     "Dim       = ", Dim
+    if (Dim == 1) then
+      write(*,'(A,I0)')   "NLevels   = ", NLevels
+      write(*,'(A,L1)')   "Periodic  = ", Periodic
+    else
+      write(*,'(A,I0)')   "Nx        = ", Nx
+      write(*,'(A,I0)')   "Ny        = ", Ny
+      write(*,'(A,I0)')   "NSites    = ", Nx*Ny
+      write(*,'(A,L1)')   "PBCx      = ", PBCx
+      write(*,'(A,L1)')   "PBCy      = ", PBCy
+    end if
+    write(*,'(A,I0)')     "Model     = ", Model
     write(*,'(A,F8.4)')   "Delta     = ", Delta
-    write(*,'(A,F6.4)')   "J2        = ", J2
-    write(*,'(A,L1)')     "Periodic  = ", Periodic
+    write(*,'(A,F8.4)')   "J2        = ", J2
   end subroutine PrintInput
+
 end module InputParams
