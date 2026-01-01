@@ -1,60 +1,131 @@
-module BuildHamDense
+module BuildHamMatVec
+
+!Uses Sparse diagonalization method Lanczos
+  
   use Precision
   use Constants
-  use Operators
   use Integrals
   implicit none
+  private
+  public :: ApplyHamiltonian
+
 contains
 
-  subroutine BuildHamiltonianDense(NLevels, HMat)
-    integer, intent(in) :: NLevels
-    real(kind=pr), intent(out) :: HMat(:,:)
-    integer :: NDet, p, q, IAlloc
-    real(kind=pr), allocatable :: Mat1(:,:), Mat2(:,:)
+  pure real(kind=pr) function SzVal(state, bit) result(sz)
+    ! state is 0-based integer determinant bitstring
+    ! bit is 0-based bit index
+    integer, intent(in) :: state, bit
+    if (iand(state, ishft(1, bit)) /= 0) then
+      sz = Half
+    else
+      sz = -Half
+    end if
+  end function SzVal
 
-    NDet = ishft(1, NLevels)
-    if (size(HMat,1) /= NDet .or. size(HMat,2) /= NDet) stop "BuildHamiltonianDense: wrong size"
-    HMat = Zero
 
-    allocate(Mat1(NDet,NDet), Mat2(NDet,NDet), stat=IAlloc)
-    if (IAlloc /= 0) stop "BuildHamiltonianDense: allocation failed"
+  pure subroutine ApplySpSm(state_in, pbit, qbit, state_out, ok)
+    ! Applies S^+_p S^-_q to |state_in>
+    ! pbit,qbit are 0-based bit indices
+    integer, intent(in)  :: state_in, pbit, qbit
+    integer, intent(out) :: state_out
+    logical, intent(out) :: ok
+    integer :: s1
 
-    ! Constant term
-    if (abs(H000) > 0.0_pr) then
-      do p = 1, NDet
-        HMat(p,p) = HMat(p,p) + H000
-      end do
+    ! S^-_q requires q occupied
+    if (iand(state_in, ishft(1, qbit)) == 0) then
+      ok = .false.
+      state_out = state_in
+      return
     end if
 
-    ! Sum_p H010(p) Sz(p)
-    do p = 1, NLevels
-      if (abs(H010(p)) > 0.0_pr) HMat = HMat + H010(p) * Sz(:,:,p)
-    end do
+    ! First apply S^-_q : clear qbit
+    s1 = iand(state_in, not(ishft(1, qbit)))
 
-    ! Sum_{p>q} H020(p,q) Sz(p)Sz(q) (works since we stored both [p,q] and [q,p])
-    do p = 1, NLevels
-      Mat1 = Sz(:,:,p)
-      do q = 1, p-1
-        if (abs(H020(p,q)) > 0.0_pr) then
-          Mat2 = Sz(:,:,q)
-          HMat = HMat + H020(p,q) * matmul(Mat1, Mat2)
+    if (pbit == qbit) then
+      ! Then S^+_p restores it (always allowed because we just cleared it)
+      ok = .true.
+      state_out = ior(s1, ishft(1, pbit))   ! equals original state
+      return
+    end if
+
+    ! S^+_p requires p empty AFTER the lowering
+    if (iand(s1, ishft(1, pbit)) /= 0) then
+      ok = .false.
+      state_out = state_in
+      return
+    end if
+
+    ok = .true.
+    state_out = ior(s1, ishft(1, pbit))
+  end subroutine ApplySpSm
+
+
+  subroutine ApplyHamiltonian(NS, v, w)
+    ! w = H v  in the full Fock space (dimension 2^NS)
+    integer, intent(in) :: NS
+    real(kind=pr), intent(in)  :: v(:)
+    real(kind=pr), intent(out) :: w(:)
+
+    integer :: NDet
+    integer :: mu, outState
+    integer :: p, q
+    integer :: pbit, qbit
+    real(kind=pr) :: diag, szp, szq, hij
+    logical :: ok
+
+    NDet = ishft(1, NS)
+    if (size(v) /= NDet .or. size(w) /= NDet) stop "ApplyHamiltonian: wrong vector size"
+
+    w = Zero
+
+    do mu = 0, NDet-1
+
+      !---------------------------
+      ! Diagonal part
+      !---------------------------
+      diag = H000
+
+      ! Sum_p H010(p) Sz(p)
+      do p = 1, NS
+        if (H010(p) /= Zero) then
+          szp = SzVal(mu, p-1)
+          diag = diag + H010(p) * szp
         end if
       end do
-    end do
 
-    ! Sum_{p,q} H101(p,q) S+(p)S-(q)
-    do p = 1, NLevels
-      Mat1 = Splus(:,:,p)
-      do q = 1, NLevels
-        if (abs(H101(p,q)) > 0.0_pr) then
-          Mat2 = Sminus(:,:,q)
-          HMat = HMat + H101(p,q) * matmul(Mat1, Mat2)
-        end if
+      ! Sum_{p>q} H020(p,q) Sz(p)Sz(q)
+      do p = 2, NS
+        szp = SzVal(mu, p-1)
+        do q = 1, p-1
+          if (H020(p,q) /= Zero) then
+            szq = SzVal(mu, q-1)
+            diag = diag + H020(p,q) * (szp * szq)
+          end if
+        end do
       end do
+
+      ! apply diagonal
+      w(mu+1) = w(mu+1) + diag * v(mu+1)
+
+      !---------------------------
+      ! Off-diagonal: Sum_{p,q} H101(p,q) S+(p) S-(q)
+      !---------------------------
+      do p = 1, NS
+        pbit = p - 1
+        do q = 1, NS
+          hij = H101(p,q)
+          if (hij == Zero) cycle
+          qbit = q - 1
+
+          call ApplySpSm(mu, pbit, qbit, outState, ok)
+          if (ok) then
+            w(outState+1) = w(outState+1) + hij * v(mu+1)
+          end if
+        end do
+      end do
+
     end do
 
-    deallocate(Mat1, Mat2, stat=IAlloc)
-    if (IAlloc /= 0) stop "BuildHamiltonianDense: deallocation failed"
-  end subroutine BuildHamiltonianDense
+  end subroutine ApplyHamiltonian
 
-end module BuildHamDense
+end module BuildHamMatVec
