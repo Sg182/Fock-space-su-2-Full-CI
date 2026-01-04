@@ -7,7 +7,7 @@ module BuildHamMatVec
   use Integrals
   implicit none
   private
-  public :: ApplyHamiltonian, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector, GetSzSectorDim
+  public :: ApplyHamiltonian, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector, GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis
 
   integer, allocatable :: basis_g(:)
   integer, allocatable :: idx_g(:)     ! idx_g(0:2^NS-1) -> sector index (1..Nsect), 0 if not in sector
@@ -291,6 +291,15 @@ contains
   end do
 end function Expect_Sz_Sector
 !==========================================================================
+
+subroutine GetSzSectorBasis(basis_out)
+  implicit none
+  integer, allocatable, intent(out) :: basis_out(:)
+
+  if (.not. allocated(basis_g)) stop "GetSzSectorBasis: sector not set"
+  allocate(basis_out(size(basis_g)))
+  basis_out = basis_g
+end subroutine GetSzSectorBasis
 
 
 end module BuildHamMatVec

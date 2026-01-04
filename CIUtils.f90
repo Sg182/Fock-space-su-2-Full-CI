@@ -2,7 +2,7 @@ module CIUtils
   use Precision
   implicit none
   private
-  public :: WriteTopCICoeffs,Expect_Sz
+  public :: WriteTopCICoeffs,Expect_Sz,WriteTopCICoeffs_WithBasis
 
 contains
 

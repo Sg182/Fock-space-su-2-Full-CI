@@ -13,7 +13,9 @@ program Fock_FCI
 
   integer :: NS, iters
   integer :: NDetSect
+  
   real(kind=pr) :: E_Sz1, resid
+  integer, allocatable :: basis(:)
   real(kind=pr), allocatable :: C0(:)
   integer :: p
   real(kind=pr) :: Szp
@@ -62,7 +64,8 @@ program Fock_FCI
   write(*,'(A,F22.16)') "Ground-state energy (Sz=1) = ", E_Sz1
   write(*,'(A,I0)')     "Lanczos iterations  = ", iters
 
-  call WriteTopCICoeffs("CI_top.dat", NS, C0, 30)
+  call GetSzSectorBasis(basis)
+  call WriteTopCICoeffs_WithBasis("CI_top.dat", NS, C0, basis,30)
 
   ! Sz expectation values: MUST be sector-aware
   do p = 0, NS-1
