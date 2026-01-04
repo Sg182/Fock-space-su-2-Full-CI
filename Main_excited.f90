@@ -2,29 +2,25 @@ program Fock_FCI
   use Precision
   use Constants
   use InputParams, only: PrintInput, NSites, Dim, Model, Delta, J2, Periodic, &
-                       PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol
+                         PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol
 
   use Integrals
-  use BuildHamMatVec  
-  use CIUtils 
-       ! provides ApplyHamiltonian(NS, v, w)
-  use LanczosSolver           ! provides LanczosGroundState(...)
+  use BuildHamMatVec
+  use CIUtils
+  use LanczosSolver
 
   implicit none
 
-  integer :: NDet
   integer :: NS, iters
-  real(kind=pr) :: E0, resid
+  integer :: NDetSect
+  real(kind=pr) :: E_Sz1, resid
   real(kind=pr), allocatable :: C0(:)
-   
   integer :: p
   real(kind=pr) :: Szp
 
   call PrintInput()
 
-  NS = NSites()
-  NDet = ishft(1, NS)
-  write(*,'(A,I0)') "NDet      = ", NDet
+  NS = NSites()    ! <<< MUST set NS first
 
   call SetUpIntegrals(NS)
 
@@ -51,34 +47,30 @@ program Fock_FCI
     stop "Main: Dim must be 1 or 2"
   end select
 
-  !---------------------------------------------
-  ! Lanczos ground state + CI coefficients
-  !---------------------------------------------
-  allocate(C0(NDet))
+  !======== Set Sz sector (Sz_tot = +1) ==================
+  call SetSzSector(NS, 1)
+  NDetSect = GetSzSectorDim()
+  write(*,'(A,I0)') "NDet(Sz=1) = ", NDetSect
+  !=======================================================
 
-  call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
-                          E0, iters, resid, C0)
+  allocate(C0(NDetSect))   ! <<< sector size
 
-  write(*,'(A,F22.16)') "Ground-state energy = ", E0
+  call LanczosGroundState(NS, NDetSect, ApplyHamiltonian_SzSector, &
+                          LanczosMaxIt, LanczosTol, E_Sz1, iters, resid, C0)
+
+  write(*,'(A,F22.16)') "Ground-state energy (Sz=1) = ", E_Sz1
   write(*,'(A,I0)')     "Lanczos iterations  = ", iters
-  !write(*,'(A,ES12.4)') "Ritz diff (proxy)   = ", resid
 
-  ! Optional: dump coefficients to a file
   call WriteTopCICoeffs("CI_top.dat", NS, C0, 30)
-   
-!==============================================================
-               !PRINTS OCCUPATION NUMBER Sz
 
-!do p = 0, NS-1
-!  Szp = Expect_Sz(C0, p)
-!  write(*,'(A,I0,A,F12.8)') "p=", p, "  <Sz_p>=", Szp
-!end do
-!===============================================================
-
+  ! Sz expectation values: MUST be sector-aware
+  do p = 0, NS-1
+    Szp = Expect_Sz_Sector(NS, C0, p)
+    write(*,'(A,I0,A,F12.8)') "p=", p, "  <Sz_p>=", Szp
+  end do
 
   deallocate(C0)
+  call ClearSzSector()
 
   call ShutDownIntegrals()
 end program Fock_FCI
-
- 
