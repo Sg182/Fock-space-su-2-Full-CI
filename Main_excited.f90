@@ -17,6 +17,7 @@ program Fock_FCI
   real(kind=pr), allocatable :: C0(:)
   integer :: p
   real(kind=pr) :: Szp
+  real(kind=pr) :: sumSz
 
   call PrintInput()
 
@@ -68,6 +69,14 @@ program Fock_FCI
     Szp = Expect_Sz_Sector(NS, C0, p)
     write(*,'(A,I0,A,F12.8)') "p=", p, "  <Sz_p>=", Szp
   end do
+
+  
+  sumSz = 0.0_pr
+  do p = 0, NS-1
+    sumSz = sumSz + Expect_Sz_Sector(NS, C0, p)
+  end do
+  write(*,'(A,F12.8)') "<Sz_tot> = ", sumSz
+
 
   deallocate(C0)
   call ClearSzSector()
