@@ -4,35 +4,28 @@ program Fock_FCI
   use InputParams, only: PrintInput, NSites, Dim, Model, Delta, J2, Periodic, &
                        PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol
 
-  !use Operators
   use Integrals
-
-  ! NEW:
-  use BuildHamMatVec          ! provides ApplyHamiltonian(NS, v, w)
-  use LanczosSolver          ! provides LanczosGroundState(...)
+  use BuildHamMatVec  
+  use CIUtils, only: WriteTopCICoeffs
+       ! provides ApplyHamiltonian(NS, v, w)
+  use LanczosSolver           ! provides LanczosGroundState(...)
 
   implicit none
 
   integer :: NDet
-  integer :: NS
-  real(kind=pr) :: E0
+  integer :: NS, iters
+  real(kind=pr) :: E0, resid
+  real(kind=pr), allocatable :: C0(:)
 
   call PrintInput()
 
-  ! total number of pair-levels/sites used by the Fock space
   NS = NSites()
-
   NDet = ishft(1, NS)
   write(*,'(A,I0)') "NDet      = ", NDet
 
-  !call SetUpPairOperators(NS)
   call SetUpIntegrals(NS)
 
-  !============================================
-  ! Build integrals depending on geometry/model
-  !============================================
   select case (Dim)
-
   case (1)
     if (Model == 1) then
       call DoIntegralsXXZ_1D(NS, Delta, Periodic)
@@ -53,17 +46,27 @@ program Fock_FCI
 
   case default
     stop "Main: Dim must be 1 or 2"
-
   end select
 
   !---------------------------------------------
-  ! Lanczos ground state (NO dense H)
+  ! Lanczos ground state + CI coefficients
   !---------------------------------------------
-  call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, E0)
+  allocate(C0(NDet))
+
+  call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
+                          E0, iters, resid, C0)
 
   write(*,'(A,F22.16)') "Ground-state energy = ", E0
+  write(*,'(A,I0)')     "Lanczos iterations  = ", iters
+  write(*,'(A,ES12.4)') "Ritz diff (proxy)   = ", resid
+
+  ! Optional: dump coefficients to a file
+  call WriteTopCICoeffs("CI_top.dat", NS, C0, 30)
+
+
+  deallocate(C0)
 
   call ShutDownIntegrals()
-  !call ShutDownPairOperators()
-
 end program Fock_FCI
+
+ 
