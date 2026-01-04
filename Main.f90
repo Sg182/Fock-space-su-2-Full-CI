@@ -1,3 +1,6 @@
+!=========================================================================================================
+  !USE THIS FILE TO RUN THE CALCULATION IN THE TOTAL FOCK SPACE (OR INCLUDE ALL Sz SECTORS IN THE SPACE)
+
 program Fock_FCI
   use Precision
   use Constants
