@@ -41,6 +41,9 @@ program Fock_FCI
     ! New Hamiltonian: no Integrals build needed (unless you want H000 shift)
     ! Optionally: Periodic must be false for your OBC version
       if (Periodic) stop "Model=3: Periodic not implemented"
+    else if (Model == 4) Then
+      If (Periodic) stop "Model=4: Periodic not implemented"
+
     else
       stop "Main: unknown Model (use 1=XXZ, 2=J1J2XXZ or 3)"
     end if
@@ -70,6 +73,12 @@ program Fock_FCI
     call SetDelta_PJW(Delta)
     call LanczosGroundState(NS, NDet, ApplyHamiltonian_XXZPJW_OBC, LanczosMaxIt, LanczosTol, &
                           E0, iters, resid, C0)
+  else if (Model == 4) then
+    call SetDelta_PJW(Delta)
+    call LanczosGroundState(NS, NDet, ApplyHamiltonian_XXZJW_P_OBC, LanczosMaxIt, LanczosTol, &
+                          E0, iters, resid, C0)
+  
+  
   else
     call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
                           E0, iters, resid, C0)

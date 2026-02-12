@@ -23,7 +23,7 @@ module InputParams
   logical :: PBCy      = .True.  ! Modify for Dim=2
 
   ! Hamiltonian parameters
-  real(kind=pr) :: Delta = 0.94_pr
+  real(kind=pr) :: Delta = 0.80_pr
   real(kind=pr) :: J2    = 0.0_pr
 
   ! =====Optional model selector (if you want a clean switch in Main)======

@@ -8,7 +8,7 @@ module BuildHamMatVec
   implicit none
   private
   public :: ApplyHamiltonian,ApplyHamiltonian_XXZPJW_OBC, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector
-  public :: GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis , SetDelta_PJW
+  public :: ApplyHamiltonian_XXZJW_P_OBC, GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis , SetDelta_PJW
 
   integer, allocatable :: basis_g(:)
   integer, allocatable :: idx_g(:)     ! idx_g(0:2^NS-1) -> sector index (1..Nsect), 0 if not in sector
@@ -35,6 +35,16 @@ contains
       sz = -Half
     end if
   end function SzVal
+
+  pure real(kind=pr) function SzVal_LGhost(state, bit) result(sz)
+    integer, intent(in) :: state, bit
+    if (bit < 0) then
+      sz = Half          ! Sz_0 = 1/2
+    else
+      sz = SzVal(state, bit)
+    end if
+  end function SzVal_LGhost
+
 
 
   pure subroutine ApplySpSm(state_in, pbit, qbit, state_out, ok)
@@ -273,6 +283,56 @@ contains
     end do
 
   end subroutine ApplyHamiltonian_SzSector
+
+  
+  subroutine ApplyHamiltonian_XXZJW_P_OBC(NS, v, w)
+  !THIS IS FOR 1D OBC ONLY! JW FOLLOWED BY PARITY
+    integer, intent(in) :: NS
+    real(kind=pr), intent(in)  :: v(:)
+    real(kind=pr), intent(out) :: w(:)
+
+    integer :: NDet
+    integer :: mu, outState
+    integer :: p
+    integer :: pbit, leftbit, rightbit
+    real(kind=pr) :: diag, szL, szR, szLR, cflip
+
+    NDet = ishft(1, NS)
+    if (size(v) /= NDet .or. size(w) /= NDet) stop "ApplyHamiltonian_XXZMAP_OBC: wrong vector size"
+
+    w = Zero
+
+    do mu = 0, NDet-1
+
+      diag = Zero
+
+    ! OBC: p = 1..NS-1
+      do p = 1, NS-1
+        pbit     = p - 1      ! site p
+        leftbit  = p - 2      ! site p-1  (p=1 -> bit=-1 -> ghost Sz0)
+        rightbit = p          ! site p+1  (max p=NS-1 -> bit=NS-1 OK)
+
+        szL  = SzVal_LGhost(mu, leftbit) !Sz_{p-1}
+        szR  = SzVal(mu, rightbit)       !Sz_{p+1}
+        szLR = szL * szR
+
+      ! Diagonal: + Delta * Sz_{p-1} Sz_{p+1}
+        diag = diag + Delta_PJW * szLR
+
+      ! Off-diagonal flip at site p:
+      ! (1/2)Sx_p  ->  +1/4
+      ! -2 Sz_{p-1} Sx_p Sz_{p+1} ->  -(szL*szR)
+        cflip = 0.25_pr - szLR
+
+        outState = ieor(mu, ishft(1, pbit))
+        w(outState+1) = w(outState+1) + cflip * v(mu+1)
+      end do
+
+      w(mu+1) = w(mu+1) + diag * v(mu+1)
+
+    end do
+  end subroutine ApplyHamiltonian_XXZJW_P_OBC
+
 
   subroutine ApplyHamiltonian_XXZPJW_OBC(NS, v, w)
   ! w = H v in the full Fock space (dimension 2^NS)
