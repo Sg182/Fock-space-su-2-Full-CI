@@ -37,8 +37,12 @@ program Fock_FCI
       call DoIntegralsXXZ_1D(NS, Delta, Periodic)
     else if (Model == 2) then
       call DoIntegralsJ1J2XXZ_1D(NS, Delta, J2, Periodic)
+    else if (Model == 3) then
+    ! New Hamiltonian: no Integrals build needed (unless you want H000 shift)
+    ! Optionally: Periodic must be false for your OBC version
+      if (Periodic) stop "Model=3: Periodic not implemented"
     else
-      stop "Main: unknown Model (use 1=XXZ, 2=J1J2XXZ)"
+      stop "Main: unknown Model (use 1=XXZ, 2=J1J2XXZ or 3)"
     end if
 
   case (2)
@@ -50,17 +54,30 @@ program Fock_FCI
       stop "Main: unknown Model (use 1=XXZ, 2=J1J2XXZ)"
     end if
 
+   
+
+
   case default
     stop "Main: Dim must be 1 or 2"
   end select
 
-  !---------------------------------------------
-  ! Lanczos ground state + CI coefficients
-  !---------------------------------------------
+  !--------------------------------------------------------
+  ! Evaluaion of the Lanczos ground state + CI coefficients
+  !--------------------------------------------------------
   allocate(C0(NDet))
 
-  call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
+  if (Model == 3) then
+    call SetDelta_PJW(Delta)
+    call LanczosGroundState(NS, NDet, ApplyHamiltonian_XXZPJW_OBC, LanczosMaxIt, LanczosTol, &
                           E0, iters, resid, C0)
+  else
+    call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
+                          E0, iters, resid, C0)
+  end if
+
+
+  !call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
+  !                        E0, iters, resid, C0)
 
   write(*,'(A,F22.16)') "Ground-state energy = ", E0
   write(*,'(A,I0)')     "Lanczos iterations  = ", iters

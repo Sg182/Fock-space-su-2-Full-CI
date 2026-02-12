@@ -3,24 +3,32 @@ module InputParams
   implicit none
 
   !-------------------------
-  ! Model / geometry control
+  ! This Module controls the Hamiltonian and Geometry
   !-------------------------
-  integer :: Dim = 2             ! 1 => 1D chain, 2 => 2D square
-  integer :: NLevels = 20          ! used when Dim=1
+  
+  !========================================================================
+  ! Model meanings:                                                       !
+  !   Dim=1: 1=XXZ, 2=J1J2XXZ, 3=XXZ_P+JW_OBC (P+JW Hamiltonian)      !
+  !   Dim=2: 1=XXZ, 2=J1J2XXZ                                             !
+  !=======================================================================!
+  integer :: Model = 3
+
+  integer :: Dim = 1             ! 1 => 1D chain, 2 => 2D square
+  integer :: NLevels = 6          ! used when Dim=1
   integer :: Nx = 4, Ny = 4       ! used when Dim=2   (NSites = Nx*Ny)
 
   ! Boundary conditions
-  logical :: Periodic  = .FALSE.  ! for Dim=1
+  logical :: Periodic  = .False.  ! for Dim=1
   logical :: PBCx      = .True.  ! Modify for Dim=2
   logical :: PBCy      = .True.  ! Modify for Dim=2
 
   ! Hamiltonian parameters
-  real(kind=pr) :: Delta = 1.0_pr
+  real(kind=pr) :: Delta = 0.94_pr
   real(kind=pr) :: J2    = 0.0_pr
 
   ! =====Optional model selector (if you want a clean switch in Main)======
   !  Dim=1 (1: 1D XXZ, 2: 1D J1J2XXZ), Dim=2(1: 2D XXZ, 2:2D J1J2)
-  integer :: Model = 2
+   
 
   integer       :: LanczosMaxIt = 200
    real(kind=pr) :: LanczosTol   = 1.0e-12_pr

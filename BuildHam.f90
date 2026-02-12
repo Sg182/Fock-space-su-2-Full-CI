@@ -7,14 +7,23 @@ module BuildHamMatVec
   use Integrals
   implicit none
   private
-  public :: ApplyHamiltonian, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector, GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis
+  public :: ApplyHamiltonian,ApplyHamiltonian_XXZPJW_OBC, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector
+  public :: GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis , SetDelta_PJW
 
   integer, allocatable :: basis_g(:)
   integer, allocatable :: idx_g(:)     ! idx_g(0:2^NS-1) -> sector index (1..Nsect), 0 if not in sector
   integer :: NS_g = -1
 
-
+  real(kind=pr) :: Delta_PJW = 0.0_pr
 contains
+
+  !=============================================================
+  ! NEW: setter for Delta (call from Main before Lanczos)
+  !=============================================================
+  subroutine SetDelta_PJW(Delta)
+    real(kind=pr), intent(in) :: Delta
+    Delta_PJW = Delta
+  end subroutine SetDelta_PJW
 
   pure real(kind=pr) function SzVal(state, bit) result(sz)
     ! state is 0-based integer determinant bitstring
@@ -67,7 +76,7 @@ contains
 
   subroutine ApplyHamiltonian(NS, v, w)
     ! w = H v  in the full Fock space (dimension 2^NS)
-    integer, intent(in) :: NS
+    integer, intent(in) :: NS 
     real(kind=pr), intent(in)  :: v(:)
     real(kind=pr), intent(out) :: w(:)
 
@@ -134,17 +143,18 @@ contains
   end subroutine ApplyHamiltonian
 
     subroutine SetSzSector(NS, SzTot)
-    ! Build basis for a fixed total Sz sector.
-    ! Convention: bit=1 => Sz=+1/2, bit=0 => Sz=-1/2
+    ! BUILD BASIS FOR A FIXED Sz SECTOR.
+    ! CONVENTION: BIT=1 => Sz=+1/2 (SPIN-UP), BIT=0 => Sz=-1/2 (SPIN-DOWN)
+    
     ! Then SzTot = Nup - NS/2  =>  Nup = SzTot + NS/2
-    integer, intent(in) :: NS, SzTot
+    integer, intent(in) :: NS, SzTot    !NS IS THE NUMBER OF SITES
     integer :: NFull, mu, nsect, c, NupTarget
 
     if (mod(NS,2) /= 0) then
       stop "SetSzSector: NS must be even for integer SzTot sectors"
     end if
 
-    NupTarget = (NS/2) + SzTot
+    NupTarget = (NS/2) + SzTot   !NupTarget IS THE NUMBER OF UP-SPINS
     if (NupTarget < 0 .or. NupTarget > NS) stop "SetSzSector: invalid SzTot for given NS"
 
     NFull = ishft(1, NS)
@@ -263,6 +273,77 @@ contains
     end do
 
   end subroutine ApplyHamiltonian_SzSector
+
+  subroutine ApplyHamiltonian_XXZPJW_OBC(NS, v, w)
+  ! w = H v in the full Fock space (dimension 2^NS)
+  ! Hamiltonian (OBC, your convention):
+  !   H = sum_{p=0..NS-2} [ Sx_p Sx_{p+2} + 2 Sx_p Sz_{p+1} Sx_{p+2} - (Delta/2) Sz_{p+1} ]
+  ! with ghost Sx_{p+2}=1/2 when p=NS-2 (i.e., p+2 = NS out of range).
+  integer, intent(in) :: NS
+  real(kind=pr), intent(in)  :: v(:)
+  real(kind=pr), intent(out) :: w(:)
+
+  integer :: NDet
+  integer :: mu, outState
+  integer :: p
+  integer :: pbit, midbit, p2bit
+  integer :: mask
+  real(kind=pr) :: diag, szmid, coeff
+
+  NDet = ishft(1, NS)
+  if (size(v) /= NDet .or. size(w) /= NDet) stop "ApplyHamiltonian_XXZPJW_OBC: wrong vector size"
+
+  w = Zero
+
+  do mu = 0, NDet-1
+
+    !---------------------------
+    ! Diagonal part:  -(Delta/2) * sum_{p=0..NS-2} Sz_{p+1}
+    !---------------------------
+    diag = 0.0
+    do p = 1, NS-1
+      midbit = p              ! (p+1) site has bit index p
+      szmid  = SzVal(mu, midbit)
+      diag   = diag - Half * Delta_PJW * szmid
+    end do
+    w(mu+1) = w(mu+1) + diag * v(mu+1)
+
+    !---------------------------
+    ! Off-diagonal:
+    !   sum_{p=0..NS-2} [ Sx_p Sx_{p+2} + 2 Sx_p Sz_{p+1} Sx_{p+2} ]
+    !
+    ! In Sz basis: Sx flips a spin with matrix element 1/2.
+    ! So:
+    !   <out| Sx_p Sx_{p+2} |mu> = 1/4 (two flips)
+    !   <out| 2 Sx_p Sz_{p+1} Sx_{p+2} |mu> = (1/2)*Sz_{p+1} (two flips)
+    ! Total coeff = 1/4 + (1/2)*Sz_{p+1}
+    !
+    ! Boundary p=NS-2: take Sx_{p+2}=1/2 (ghost) => only flip p,
+    ! and the same coeff formula still works with "one-flip" outState.
+    !---------------------------
+    do p = 1, NS-1
+      pbit   = p - 1
+      midbit = p
+      szmid  = SzVal(mu, midbit)
+      coeff  = 0.25_pr + Half * szmid
+
+      if (p == NS-1) then
+        ! boundary: flip only site p (since p+2 is ghost)
+        outState = ieor(mu, ishft(1, pbit))
+      else
+        ! bulk: flip sites p and p+2
+        p2bit = p + 1
+        mask  = ior(ishft(1, pbit), ishft(1, p2bit))
+        outState = ieor(mu, mask)
+      end if
+
+      w(outState+1) = w(outState+1) + coeff * v(mu+1)
+    end do
+
+  end do
+
+end subroutine ApplyHamiltonian_XXZPJW_OBC
+
 
 
 
