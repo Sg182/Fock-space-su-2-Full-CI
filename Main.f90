@@ -8,9 +8,8 @@ program Fock_FCI
                        PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol
 
   use Integrals
-  use BuildHamMatVec  
+  use BuildHamMatVec  !Provides ApplyHamiltonian
   use CIUtils 
-       ! provides ApplyHamiltonian(NS, v, w)
   use LanczosSolver           ! provides LanczosGroundState(...)
 
   implicit none
