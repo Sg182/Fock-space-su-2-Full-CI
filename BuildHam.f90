@@ -9,6 +9,7 @@ module BuildHamMatVec
   private
   public :: ApplyHamiltonian,ApplyHamiltonian_XXZPJW_OBC, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector
   public :: ApplyHamiltonian_XXZJW_P_OBC, GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis , SetDelta_PJW
+  public :: Expect_SpDotSq_Full, Build_SpSq_Matrix_Full
 
   integer, allocatable :: basis_g(:)
   integer, allocatable :: idx_g(:)     ! idx_g(0:2^NS-1) -> sector index (1..Nsect), 0 if not in sector
@@ -56,19 +57,19 @@ contains
     integer :: s1
 
     ! S^-_q requires q occupied
-    if (iand(state_in, ishft(1, qbit)) == 0) then
+    if (iand(state_in, ishft(1, qbit)) == 0) then     ! iand is BIT WISE AND operator
       ok = .false.
       state_out = state_in
       return
     end if
 
     ! First apply S^-_q : clear qbit
-    s1 = iand(state_in, not(ishft(1, qbit)))
+    s1 = iand(state_in, not(ishft(1, qbit)))     !ishift MOVES bit 1 to qbit PLACES IN A BINARY STRING
 
     if (pbit == qbit) then
       ! Then S^+_p restores it (always allowed because we just cleared it)
       ok = .true.
-      state_out = ior(s1, ishft(1, pbit))   ! equals original state
+      state_out = ior(s1, ishft(1, pbit))   ! equals original state ! ior is BIT WISE OR
       return
     end if
 
@@ -442,5 +443,75 @@ subroutine GetSzSectorBasis(basis_out)
   basis_out = basis_g
 end subroutine GetSzSectorBasis
 
+!==================COMPUTE <Sp.Sq> EXPECTATION VALUE==========================
+
+real(kind=pr) function Expect_SpDotSq_Full(NS, C, pbit, qbit) result(val)
+  integer, intent(in) :: NS, pbit, qbit
+  real(kind=pr), intent(in) :: C(:)
+
+  integer :: NDet
+  integer :: mu, outState
+  real(kind=pr) :: szp, szq
+  logical :: ok
+
+  NDet = ishft(1, NS)
+  if (size(C) /= NDet) stop "Expect_SpDotSq_Full: C has wrong length"
+
+  if (pbit < 0 .or. pbit >= NS .or. qbit < 0 .or. qbit >= NS) then
+    stop "Expect_SpDotSq_Full: pbit/qbit out of range"
+  end if
+
+  if (pbit == qbit) then
+    val = 0.75_pr
+    return
+  end if
+
+  val = 0.0_pr
+
+  do mu = 0, NDet-1
+
+    ! Diagonal part: <Sz_p Sz_q>
+    szp = SzVal(mu, pbit)
+    szq = SzVal(mu, qbit)
+    val = val + C(mu+1) * C(mu+1) * (szp * szq)
+
+    ! Off-diagonal part: 1/2 <S+_p S-_q>
+    call ApplySpSm(mu, pbit, qbit, outState, ok)
+    if (ok) then
+      val = val + 0.5_pr * C(outState+1) * C(mu+1)
+    end if
+
+    ! Off-diagonal part: 1/2 <S+_q S-_p>
+    call ApplySpSm(mu, qbit, pbit, outState, ok)
+    if (ok) then
+      val = val + 0.5_pr * C(outState+1) * C(mu+1)
+    end if
+
+  end do
+
+end function Expect_SpDotSq_Full
+
+subroutine Build_SpSq_Matrix_Full(NS, C, NAO, SpSq)
+  integer, intent(in) :: NS, NAO
+  real(kind=pr), intent(in)  :: C(:)
+  real(kind=pr), intent(out) :: SpSq(NAO,NAO)
+
+  integer :: p, q
+
+  if (NAO /= NS) stop "Build_SpSq_Matrix_Full: NAO must equal NS"
+
+  SpSq = 0.0_pr
+
+  do p = 1, NAO
+    SpSq(p,p) = 0.75_pr
+    do q = p+1, NAO
+      SpSq(p,q) = Expect_SpDotSq_Full(NS, C, p-1, q-1)
+      SpSq(q,p) = SpSq(p,q)
+    end do
+  end do
+
+end subroutine Build_SpSq_Matrix_Full
+
+!=============================================================================
 
 end module BuildHamMatVec

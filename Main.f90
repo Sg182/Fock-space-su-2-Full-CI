@@ -5,7 +5,7 @@ program Fock_FCI
   use Precision
   use Constants
   use InputParams, only: PrintInput, NSites, Dim, Model, Delta, J2, Periodic, &
-                       PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol
+                       PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol, Corr
 
   use Integrals
   use BuildHamMatVec  !Provides ApplyHamiltonian
@@ -18,6 +18,8 @@ program Fock_FCI
   integer :: NS, iters
   real(kind=pr) :: E0, resid
   real(kind=pr), allocatable :: C0(:)
+  real(kind=pr), allocatable :: SpSq(:,:)
+  integer :: q
    
   integer :: p
   real(kind=pr) :: Szp
@@ -93,6 +95,20 @@ program Fock_FCI
 
   ! Optional: dump coefficients to a file
   call WriteTopCICoeffs("CI_top.dat", NS, C0, 30)
+
+  if (Corr /= 0) then
+    allocate(SpSq(NS,NS))
+
+    call Build_SpSq_Matrix_Full(NS, C0, NS, SpSq)
+
+    open(unit=10, file="SpSq_matrix.dat", status="replace")
+    do p = 1, NS
+      write(10,'(100F20.12)') (SpSq(p,q), q=1,NS)
+    end do
+    close(10)
+
+    deallocate(SpSq)
+  end if
    
 !==============================================================
                !PRINTS OCCUPATION NUMBER Sz

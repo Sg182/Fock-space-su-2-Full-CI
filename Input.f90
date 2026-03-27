@@ -5,25 +5,25 @@ module InputParams
   !-------------------------
   ! This Module controls the Hamiltonian and Geometry
   !-------------------------
-  
+  integer :: Corr = 1   ! SET 1 TO CALCULATE CORRELATION
   !========================================================================
   ! Model meanings:                                                       !
   !   Dim=1: 1=XXZ, 2=J1J2XXZ, 3=XXZ_P+JW_OBC (P+JW Hamiltonian)      !
   !   Dim=2: 1=XXZ, 2=J1J2XXZ                                             !
   !=======================================================================!
-  integer :: Model = 3
+  integer :: Model = 1
 
   integer :: Dim = 1             ! 1 => 1D chain, 2 => 2D square
-  integer :: NLevels = 6          ! used when Dim=1
+  integer :: NLevels = 4         ! used when Dim=1
   integer :: Nx = 4, Ny = 4       ! used when Dim=2   (NSites = Nx*Ny)
 
   ! Boundary conditions
-  logical :: Periodic  = .False.  ! for Dim=1
+  logical :: Periodic  = .TRUE.  ! for Dim=1
   logical :: PBCx      = .True.  ! Modify for Dim=2
   logical :: PBCy      = .True.  ! Modify for Dim=2
 
   ! Hamiltonian parameters
-  real(kind=pr) :: Delta = 0.80_pr
+  real(kind=pr) :: Delta = 2_pr
   real(kind=pr) :: J2    = 0.0_pr
 
   ! =====Optional model selector (if you want a clean switch in Main)======
