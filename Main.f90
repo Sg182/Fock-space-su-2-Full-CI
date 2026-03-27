@@ -5,7 +5,7 @@ program Fock_FCI
   use Precision
   use Constants
   use InputParams, only: PrintInput, NSites, Dim, Model, Delta, J2, Periodic, &
-                       PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol, Corr
+                       PBCx, PBCy, Nx, Ny, LanczosMaxIt, LanczosTol, isCorr
 
   use Integrals
   use BuildHamMatVec  !Provides ApplyHamiltonian

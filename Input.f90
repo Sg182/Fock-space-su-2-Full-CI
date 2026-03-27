@@ -5,7 +5,7 @@ module InputParams
   !-------------------------
   ! This Module controls the Hamiltonian and Geometry
   !-------------------------
-  integer :: Corr = 1   ! SET 1 TO CALCULATE CORRELATION
+  integer :: isCorr = 1   ! SET 1 TO CALCULATE CORRELATION
   !========================================================================
   ! Model meanings:                                                       !
   !   Dim=1: 1=XXZ, 2=J1J2XXZ, 3=XXZ_P+JW_OBC (P+JW Hamiltonian)      !
