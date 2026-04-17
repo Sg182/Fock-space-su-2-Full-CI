@@ -19,10 +19,20 @@ program Fock_FCI
   real(kind=pr) :: E0, resid
   real(kind=pr), allocatable :: C0(:)
   real(kind=pr), allocatable :: SpSq(:,:)
-  integer :: q
+  !integer :: q
+  real(kind=pr), allocatable :: Corr(:)
+  integer :: iPBC = 0
+
+  real(kind=pr) :: normsq
+  logical :: is_norm
    
   integer :: p
   real(kind=pr) :: Szp
+  
+
+  if (Periodic) then
+    iPBC = 1
+  endif
 
   call PrintInput()
 
@@ -89,27 +99,47 @@ program Fock_FCI
   !call LanczosGroundState(NS, NDet, ApplyHamiltonian, LanczosMaxIt, LanczosTol, &
   !                        E0, iters, resid, C0)
 
+  call CheckNormalization_FCI(C0, normsq, is_norm)
+  write(*,*)
+  write(*,*) "========================================"
+  write(*,*) "Normalization check of FCI wavefunction"
+  write(*,*) "========================================"
+  write(*,' (A,F20.12)') "<Psi|Psi> = ", normsq
+  write(*,*)
   write(*,'(A,F22.16)') "Ground-state energy = ", E0
   write(*,'(A,I0)')     "Lanczos iterations  = ", iters
   !write(*,'(A,ES12.4)') "Ritz diff (proxy)   = ", resid
 
   ! Optional: dump coefficients to a file
+  
   call WriteTopCICoeffs("CI_top.dat", NS, C0, 30)
+!!===============PRINTS CORRELATION FUNCTIONS F(r)===========================
+  if (isCorr /= 0) then
+    allocate(SpSq(NS,NS), Corr(NS))
 
-  if (Corr /= 0) then
-    allocate(SpSq(NS,NS))
 
     call Build_SpSq_Matrix_Full(NS, C0, NS, SpSq)
+    call CalcCorr1D_FromSpSq(SpSq, NS, iPBC, Corr)
 
-    open(unit=10, file="SpSq_matrix.dat", status="replace")
+    write(*,*) "iPBC = ",iPBC
+    write(*,*) "========================================"
+    write(*,*) "1D averaged correlation function Corr(r)"
+    write(*,*) "========================================"
+    write(*,*) "    r         Corr(r)"
     do p = 1, NS
-      write(10,'(100F20.12)') (SpSq(p,q), q=1,NS)
+      write(*,'(I6,2X,F20.12)') p-1, Corr(p)
     end do
-    close(10)
 
-    deallocate(SpSq)
+    open(unit=11, file="Corr1D.dat", status="replace")
+    do p = 1, NS
+      write(11,'(I6,2X,F20.12)') p-1, Corr(p)
+    end do
+    close(11)
+
+
+    deallocate(SpSq,Corr)
   end if
-   
+!==============================================================
 !==============================================================
                !PRINTS OCCUPATION NUMBER Sz
 
