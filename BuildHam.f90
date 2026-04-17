@@ -9,7 +9,8 @@ module BuildHamMatVec
   private
   public :: ApplyHamiltonian,ApplyHamiltonian_XXZPJW_OBC, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector
   public :: ApplyHamiltonian_XXZJW_P_OBC, GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis , SetDelta_PJW
-  public :: Expect_SpDotSq_Full, Build_SpSq_Matrix_Full
+  public :: Expect_SpDotSq_Full, Build_SpSq_Matrix_Full, CalcCorr1D_FromSpSq
+  public :: CheckNormalization_FCI, Overlap_FCI
 
   integer, allocatable :: basis_g(:)
   integer, allocatable :: idx_g(:)     ! idx_g(0:2^NS-1) -> sector index (1..Nsect), 0 if not in sector
@@ -99,6 +100,7 @@ contains
     logical :: ok
 
     NDet = ishft(1, NS)
+    !NDet = 2.0d0**144
     if (size(v) /= NDet .or. size(w) /= NDet) stop "ApplyHamiltonian: wrong vector size"
 
     w = Zero
@@ -512,6 +514,78 @@ subroutine Build_SpSq_Matrix_Full(NS, C, NAO, SpSq)
 
 end subroutine Build_SpSq_Matrix_Full
 
+Subroutine CalcCorr1D_FromSpSq(SpSq, NAO, iPBC, Corr)
+  Use Precision
+  Implicit None
+
+  Integer, Intent(in) :: NAO, iPBC
+  Real(Kind=pr), Intent(in) :: SpSq(NAO,NAO)
+  Real(Kind=pr), Intent(out) :: Corr(NAO)
+
+  Integer :: r, p, q, count
+  Real(Kind=pr) :: sumv
+
+  Corr = 0.0_pr
+
+  do r = 0, NAO-1
+    sumv  = 0.0_pr
+    count = 0
+
+    if (iPBC == 1) then
+      do p = 1, NAO
+        q = mod(p-1+r, NAO) + 1
+        sumv = sumv + SpSq(p,q)
+        count = count + 1
+      end do
+
+      if (count > 0) then
+        Corr(r+1) = sumv / real(count, kind=pr)
+      else
+        Corr(r+1) = 0.0_pr
+      end if
+
+    else
+      do p = 1, NAO-r
+        q = p + r
+        sumv = sumv + SpSq(p,q)
+        count = count + 1
+      end do
+
+      Corr(r+1) = sumv
+    end if
+
+  end do
+
+End Subroutine CalcCorr1D_FromSpSq
+
 !=============================================================================
+
+!======================CHECKS OVERLAP AND NORMALIZATION===============================
+
+
+subroutine CheckNormalization_FCI(C, normsq, is_normalized)
+  use Precision
+  implicit none
+  real(kind=pr), intent(in) :: C(:)
+  real(kind=pr), intent(out) :: normsq
+  logical, intent(out) :: is_normalized
+
+  real(kind=pr), parameter :: tol = 1.0e-10_pr
+
+  normsq = dot_product(C, C)
+  is_normalized = abs(normsq - 1.0_pr) < tol
+end subroutine CheckNormalization_FCI
+
+real(kind=pr) function Overlap_FCI(C1, C2) result(val)
+  use Precision
+  implicit none
+  real(kind=pr), intent(in) :: C1(:), C2(:)
+
+  if (size(C1) /= size(C2)) stop "Overlap_FCI: vectors have different sizes"
+
+  val = dot_product(C1, C2)
+end function Overlap_FCI
+
+!======================================================================
 
 end module BuildHamMatVec

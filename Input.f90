@@ -14,16 +14,17 @@ module InputParams
   integer :: Model = 1
 
   integer :: Dim = 1             ! 1 => 1D chain, 2 => 2D square
-  integer :: NLevels = 4         ! used when Dim=1
+  integer :: NLevels = 30       ! used when Dim=1
   integer :: Nx = 4, Ny = 4       ! used when Dim=2   (NSites = Nx*Ny)
 
   ! Boundary conditions
-  logical :: Periodic  = .TRUE.  ! for Dim=1
+  logical :: Periodic  = .True.  ! for Dim=1
   logical :: PBCx      = .True.  ! Modify for Dim=2
   logical :: PBCy      = .True.  ! Modify for Dim=2
 
+   
   ! Hamiltonian parameters
-  real(kind=pr) :: Delta = 2_pr
+  real(kind=pr) :: Delta = -2.0_pr
   real(kind=pr) :: J2    = 0.0_pr
 
   ! =====Optional model selector (if you want a clean switch in Main)======
@@ -31,9 +32,10 @@ module InputParams
    
 
   integer       :: LanczosMaxIt = 200
-   real(kind=pr) :: LanczosTol   = 1.0e-12_pr
+  real(kind=pr) :: LanczosTol   = 1.0e-12_pr
 
 contains
+
 
   !=========================================================
   ! Return total number of sites/pair-levels used by Fock code
