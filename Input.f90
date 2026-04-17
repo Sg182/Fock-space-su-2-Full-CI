@@ -11,10 +11,10 @@ module InputParams
   !   Dim=1: 1=XXZ, 2=J1J2XXZ, 3=XXZ_P+JW_OBC (P+JW Hamiltonian)      !
   !   Dim=2: 1=XXZ, 2=J1J2XXZ                                             !
   !=======================================================================!
-  integer :: Model = 1
+  integer :: Model = 2
 
-  integer :: Dim = 1             ! 1 => 1D chain, 2 => 2D square
-  integer :: NLevels = 30       ! used when Dim=1
+  integer :: Dim = 2             ! 1 => 1D chain, 2 => 2D square
+  integer :: NLevels = 24       ! used when Dim=1
   integer :: Nx = 4, Ny = 4       ! used when Dim=2   (NSites = Nx*Ny)
 
   ! Boundary conditions
@@ -24,7 +24,7 @@ module InputParams
 
    
   ! Hamiltonian parameters
-  real(kind=pr) :: Delta = -2.0_pr
+  real(kind=pr) :: Delta = 0.0_pr
   real(kind=pr) :: J2    = 0.0_pr
 
   ! =====Optional model selector (if you want a clean switch in Main)======

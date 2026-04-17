@@ -9,7 +9,7 @@ module BuildHamMatVec
   private
   public :: ApplyHamiltonian,ApplyHamiltonian_XXZPJW_OBC, SetSzSector, ClearSzSector, ApplyHamiltonian_SzSector
   public :: ApplyHamiltonian_XXZJW_P_OBC, GetSzSectorDim,Expect_Sz_Sector, GetSzSectorBasis , SetDelta_PJW
-  public :: Expect_SpDotSq_Full, Build_SpSq_Matrix_Full, CalcCorr1D_FromSpSq
+  public :: Expect_SpDotSq_Full, Build_SpSq_Matrix_Full, CalcCorr1D_FromSpSq, CalcCorr2D_FromSpSq
   public :: CheckNormalization_FCI, Overlap_FCI
 
   integer, allocatable :: basis_g(:)
@@ -519,8 +519,8 @@ Subroutine CalcCorr1D_FromSpSq(SpSq, NAO, iPBC, Corr)
   Implicit None
 
   Integer, Intent(in) :: NAO, iPBC
-  Real(Kind=pr), Intent(in) :: SpSq(NAO,NAO)
-  Real(Kind=pr), Intent(out) :: Corr(NAO)
+  real(Kind=pr), Intent(in) :: SpSq(NAO,NAO)
+  real(Kind=pr), Intent(out) :: Corr(NAO)
 
   Integer :: r, p, q, count
   Real(Kind=pr) :: sumv
@@ -557,6 +557,65 @@ Subroutine CalcCorr1D_FromSpSq(SpSq, NAO, iPBC, Corr)
   end do
 
 End Subroutine CalcCorr1D_FromSpSq
+
+Subroutine CalcCorr2D_FromSpSq(SpSq, Nx, Ny, iPBC, tol, Corr)
+  Use Precision
+  Implicit None
+
+  Integer, Intent(in) :: Nx, Ny, iPBC
+  Real(Kind=pr), Intent(in) :: tol
+  real(Kind=pr), Intent(in) :: SpSq(Nx*Ny, Nx*Ny)
+  real(Kind=pr), Intent(out) :: Corr(Nx, Ny)
+
+  Integer :: dx, dy
+  Integer :: x1, y1, x2, y2
+  Integer :: p, q, count
+  Complex(Kind=pr) :: sumv, avg
+
+  Corr = 0.0_pr
+
+  do dx = 0, Nx-1
+    do dy = 0, Ny-1
+
+      sumv  = (0.0_pr, 0.0_pr)
+      count = 0
+
+      do x1 = 1, Nx
+        do y1 = 1, Ny
+
+          x2 = x1 + dx
+          y2 = y1 + dy
+
+          if (iPBC == 1) then
+            x2 = mod(x2-1, Nx) + 1
+            y2 = mod(y2-1, Ny) + 1
+          else
+            if (x2 > Nx .or. y2 > Ny) cycle
+          end if
+
+          p = (x1-1)*Ny + y1
+          q = (x2-1)*Ny + y2
+
+          sumv = sumv + SpSq(p,q)
+          count = count + 1
+
+        end do
+      end do
+
+      if (count > 0) then
+        avg = sumv / real(count, kind=pr)
+
+        if (abs(aimag(avg)) > tol) then
+          write(*,'(A,I4,A,I4,A,ES16.8)') 'Warning: Im(Corr) at dx,dy=(', dx, ',', dy, ') = ', aimag(avg)
+        end if
+
+        Corr(dx+1, dy+1) = real(avg, kind=pr)
+      end if
+
+    end do
+  end do
+
+End Subroutine CalcCorr2D_FromSpSq
 
 !=============================================================================
 

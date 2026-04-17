@@ -18,15 +18,20 @@ program Fock_FCI
   integer :: NS, iters
   real(kind=pr) :: E0, resid
   real(kind=pr), allocatable :: C0(:)
-  real(kind=pr), allocatable :: SpSq(:,:)
+  !real(kind=pr), allocatable :: SpSq(:,:)
   !integer :: q
-  real(kind=pr), allocatable :: Corr(:)
+  !real(kind=pr), allocatable :: Corr(:)
   integer :: iPBC = 0
+  Real(Kind=pr), Allocatable :: SpSq(:,:)
+  Real(Kind=pr), Allocatable :: Corr1D(:)
+  Real(Kind=pr), Allocatable :: Corr2D(:,:)
+  Integer :: p, dx, dy
 
   real(kind=pr) :: normsq
   logical :: is_norm
+  real(kind=pr) :: tol
    
-  integer :: p
+   
   real(kind=pr) :: Szp
   
 
@@ -114,31 +119,68 @@ program Fock_FCI
   
   call WriteTopCICoeffs("CI_top.dat", NS, C0, 30)
 !!===============PRINTS CORRELATION FUNCTIONS F(r)===========================
-  if (isCorr /= 0) then
-    allocate(SpSq(NS,NS), Corr(NS))
+!===============PRINTS CORRELATION FUNCTIONS F(r)===========================
+if (isCorr /= 0) then
 
+  allocate(SpSq(NS,NS))
+  call Build_SpSq_Matrix_Full(NS, C0, NS, SpSq)
 
-    call Build_SpSq_Matrix_Full(NS, C0, NS, SpSq)
-    call CalcCorr1D_FromSpSq(SpSq, NS, iPBC, Corr)
+  write(*,*) "iPBC = ", iPBC
 
-    write(*,*) "iPBC = ",iPBC
+  if (Dim == 1) then
+
+    allocate(Corr1D(NS))
+
+    call CalcCorr1D_FromSpSq(SpSq, NS, iPBC, Corr1D)
+
     write(*,*) "========================================"
     write(*,*) "1D averaged correlation function Corr(r)"
     write(*,*) "========================================"
     write(*,*) "    r         Corr(r)"
     do p = 1, NS
-      write(*,'(I6,2X,F20.12)') p-1, Corr(p)
+      write(*,'(I6,2X,F20.12)') p-1, Corr1D(p)
     end do
 
     open(unit=11, file="Corr1D.dat", status="replace")
     do p = 1, NS
-      write(11,'(I6,2X,F20.12)') p-1, Corr(p)
+      write(11,'(I6,2X,F20.12)') p-1, Corr1D(p)
     end do
     close(11)
 
+    deallocate(Corr1D)
 
-    deallocate(SpSq,Corr)
+  else
+
+    allocate(Corr2D(Nx,Ny))
+
+    call CalcCorr2D_FromSpSq(SpSq, Nx, Ny, iPBC, 1.0e-10_pr, Corr2D)
+
+    write(*,*) "=================================================="
+    write(*,*) "2D averaged correlation function Corr(dx,dy)"
+    write(*,*) "=================================================="
+    write(*,*) "   dx    dy         Corr(dx,dy)"
+    do dx = 1, Nx
+      do dy = 1, Ny
+        write(*,'(I6,2X,I6,2X,F20.12)') dx-1, dy-1, Corr2D(dx,dy)
+      end do
+    end do
+
+    open(unit=11, file="Corr2D.dat", status="replace")
+    do dx = 1, Nx
+      do dy = 1, Ny
+        write(11,'(I6,2X,I6,2X,F20.12)') dx-1, dy-1, Corr2D(dx,dy)
+      end do
+      write(11,*)
+    end do
+    close(11)
+
+    deallocate(Corr2D)
+
   end if
+
+  deallocate(SpSq)
+
+end if
 !==============================================================
 !==============================================================
                !PRINTS OCCUPATION NUMBER Sz
